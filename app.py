@@ -1,5 +1,4 @@
 import streamlit as st
-import json
 import tensorflow as tf
 from PIL import Image
 import numpy as np
@@ -13,15 +12,32 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# १५ क्लासेसची यादी थेट कोडमध्ये समाविष्ट
+CLASS_NAMES = [
+    "Pepper__bell___Bacterial_spot", 
+    "Pepper__bell___healthy", 
+    "Potato___Early_blight", 
+    "Potato___Late_blight", 
+    "Potato___healthy", 
+    "Tomato_Bacterial_spot", 
+    "Tomato_Early_blight", 
+    "Tomato_Late_blight", 
+    "Tomato_Leaf_Mold", 
+    "Tomato_Septoria_leaf_spot", 
+    "Tomato_Spider_mites_Two_spotted_spider_mite", 
+    "Tomato__Target_Spot", 
+    "Tomato__Tomato_YellowLeaf__Curl_Virus", 
+    "Tomato__Tomato_mosaic_virus", 
+    "Tomato_healthy"
+]
+
 @st.cache_resource
 def load_unified_model():
     model = tf.keras.models.load_model("krushi_mobilenetv2_ready.h5", compile=False)
-    with open("classes.json", "r") as f:
-        classes = json.load(f)
-    return model, classes
+    return model
 
 try:
-    model, class_names = load_unified_model()
+    model = load_unified_model()
     model_ready = True
 except Exception as e:
     model_ready = False
@@ -42,18 +58,19 @@ if up_file and model_ready:
         preds = model(arr, training=False).numpy()[0]
         idx = int(np.argmax(preds))
         conf = float(preds[idx]) * 100
-        detected_class = class_names[idx]
+        detected_class = CLASS_NAMES[idx]
 
     # Out of Scope / Unrecognized Gate
     if "Tomato" in detected_class or "Pepper" in detected_class:
-        st.error(f"⚠️ **अनोळखी वनस्पती / Out of Scope Plant**\n\nहे पान **{detected_class.split('___')[0]}** चे दिसते. कृषी-AI सध्या बटाटा पिकासाठी प्रमाणित आहे.")
+        st.warning(f"⚠️ **अनोळखी वनस्पती / इतर पीक (Out of Scope)**\n\nहे पान **{detected_class.split('___')[0].replace('_', ' ')}** चे दिसते. कृषी-AI सध्या बटाटा पिकासाठी प्रमाणित आहे.")
     else:
         clean_name = detected_class.replace("___", " ").replace("_", " ")
-        st.success(f"✅ **निदान:** {clean_name}")
+        st.success(f"✅ **अचूक निदान:** {clean_name}")
         st.metric("विश्वास गुण (Confidence)", f"{conf:.2f}%")
 
     with st.expander("📊 सविस्तर वर्गीकरण (Detailed Class Probabilities)"):
         top_indices = np.argsort(preds)[::-1][:5]
         for i in top_indices:
-            c_name = class_names[i].replace("___", " ").replace("_", " ")
+            c_name = CLASS_NAMES[i].replace("___", " ").replace("_", " ")
             st.write(f"• **{c_name}**: `{float(preds[i])*100:.1f}%`")
+            
